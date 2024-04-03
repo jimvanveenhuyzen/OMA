@@ -24,8 +24,9 @@ def plotInt(vel,flux,title,fig):
     plt.xlabel('Velocity [km/s]')
     plt.ylabel('Integrated intensity [mJy/beam]')
     plt.title(title)
-    plt.savefig(fig)
-    plt.show()
+    #plt.savefig(fig)
+    #plt.show()
+    plt.close()
 
 co21agn_vel = co21agn[:,3]
 co21agn_flux = co21agn[:,4] 
@@ -128,11 +129,22 @@ from scipy.optimize import curve_fit
 def func(x,a,b):
     return a*x + b
 
-popt_starburst,pcov_starburst = curve_fit(func,[T_21,T_32],[np.log(co21starburst_Nu/g_21),np.log(co32starburst_Nu/g_32)])
-popt_agn,pcov_agn = curve_fit(func,[T_21,T_32],[np.log(co21agn_Nu/g_21),np.log(co32agn_Nu/g_32)])
+popt_starburst,pcov_starburst = curve_fit(func,[T_21,T_32],[np.log(co21starburst_Nu/g_21),np.log(co32starburst_Nu/g_32)],\
+                                          sigma=[0.1*np.log(co21starburst_Nu/g_21),0.1*np.log(co32starburst_Nu/g_32)],\
+                                            absolute_sigma=True)
+popt_agn,pcov_agn = curve_fit(func,[T_21,T_32],[np.log(co21agn_Nu/g_21),np.log(co32agn_Nu/g_32)],\
+                              sigma=[0.1*np.log(co21agn_Nu/g_21),0.1*np.log(co32agn_Nu/g_32)],\
+                                absolute_sigma=True)
+
+#p,cov = np.polyfit([T_21,T_32],[np.log(co21agn_Nu/g_21),np.log(co32agn_Nu/g_32)],deg=1,cov=True)
+#print('Using np.polyfit gives:',p,cov)
 
 print(popt_starburst)
 print(popt_agn)
+
+print('The fit-errors are:')
+print(np.diag(pcov_starburst))
+print(np.diag(pcov_agn))
 
 rotT_starburst = -1/popt_starburst[0]
 Ntot_overZ_starburst = np.exp(popt_starburst[1]) 
@@ -156,8 +168,11 @@ T_agn_idx = np.abs(T_interp-rotT_agn).argmin()
 logZ_starburst = logZ_interp[T_starburst_idx]
 logZ_agn = logZ_interp[T_agn_idx]
 
-Ntot_starburst = Ntot_overZ_starburst/logZ_starburst
-Ntot_agn = Ntot_overZ_agn/logZ_agn
+print('The values of the partition functions log(Z) are:')
+print(logZ_starburst,logZ_agn)
+
+Ntot_starburst = Ntot_overZ_starburst*(10**logZ_starburst)
+Ntot_agn = Ntot_overZ_agn*(10**logZ_agn)
 print('The total column density of the starburst region is: {:.3e}'.format(Ntot_starburst))
 print('The total column density of the agn is: {:.3e}'.format(Ntot_agn))
 
@@ -205,17 +220,17 @@ co32agn_Nu_gu = np.log(co32agn_Nu/g_32)
 
 energy_array = np.array([T_interp[T_21idx],T_interp[T_32idx]])
 
-
-
 plt.errorbar(energy_array,np.array([co21starburst_Nu_gu,co32starburst_Nu_gu]),\
-             yerr=np.array([0.1,0.1]),color='black',zorder=100)
+             yerr=np.array([0.1,0.1]),color='black',zorder=100,fmt='o')
+plt.errorbar(energy_array,np.array([co21agn_Nu_gu,co32agn_Nu_gu]),\
+             yerr=np.array([0.1,0.1]),color='black',zorder=200,fmt='o')
 #plt.errorbar(energy_array,np.array([co21agn_Nu_gu,co32agn_Nu_gu]),color='red',zorder=120)
 plt.plot(energy_array,func(energy_array,*popt_starburst),label='Starburst',color='cyan')
 plt.plot(energy_array,func(energy_array,*popt_agn),label='AGN',color='orange')
 #plt.plot(energy_array,np.array([co21starburst_Nu_gu,co32starburst_Nu_gu]),label='Starburst',color='cyan')
 #plt.plot(energy_array,np.array([co21agn_Nu_gu,co32agn_Nu_gu]),label='AGN',color='orange')
 plt.xlabel('Energy of upper level [K]')
-plt.ylabel('ln(N_u/g_u)')
+plt.ylabel('Upper level column density per transition: ln(N_u/g_u)')
 plt.title('Rotational diagram of CO21 and CO32 transitions for starburst and AGN')
 plt.tick_params(axis='both', which='both', direction='in', bottom=True, top=False, left=True, right=False)
 plt.legend()
